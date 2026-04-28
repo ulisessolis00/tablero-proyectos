@@ -1,5 +1,3 @@
-<!-- src/views/VistaDetalleSecretaria.vue -->
-
 <template>
   <section class="vistaDetalleSecretaria">
     <div v-if="cargando" class="vistaDetalleSecretaria__estado">
@@ -20,6 +18,19 @@
       </button>
     </div>
 
+    <div
+      v-else-if="!secretaria"
+      class="vistaDetalleSecretaria__estado vistaDetalleSecretaria__estado--error"
+      role="alert"
+    >
+      <h1>Secretaría no encontrada</h1>
+      <p>No encontramos información para la secretaría solicitada.</p>
+
+      <button class="vistaDetalleSecretaria__boton" type="button" @click="volverPanorama">
+        Volver al panorama
+      </button>
+    </div>
+
     <template v-else>
       <header class="vistaDetalleSecretaria__hero" :style="estilosSecretaria">
         <div class="vistaDetalleSecretaria__heroFondo" aria-hidden="true"></div>
@@ -34,7 +45,7 @@
             <div>
               <div class="vistaDetalleSecretaria__badges">
                 <span class="vistaDetalleSecretaria__sigla">
-                  {{ secretaria.sigla }}
+                  {{ secretaria.sigla || secretaria.id || 'N/D' }}
                 </span>
 
                 <span class="vistaDetalleSecretaria__estadoDato">
@@ -44,18 +55,19 @@
               </div>
 
               <h1 class="vistaDetalleSecretaria__titulo">
-                {{ secretaria.nombre }}
+                {{ secretaria.nombre || 'Secretaría sin nombre' }}
               </h1>
 
               <p class="vistaDetalleSecretaria__titular">
                 <UserRound :size="18" stroke-width="2.2" />
-                <span>Titular: {{ secretaria.titular }}</span>
+                <span> Titular: {{ secretaria.titular || 'Por capturar' }} </span>
               </p>
             </div>
 
             <div class="vistaDetalleSecretaria__fuente">
               <span>Fuente</span>
               <strong>{{ nombreFuente }}</strong>
+
               <small v-if="secretaria.hojaFuente"> Hoja: {{ secretaria.hojaFuente }} </small>
             </div>
           </div>
@@ -77,11 +89,11 @@
           <EncabezadoSeccion
             titulo="Programas registrados"
             subtitulo="Listado agrupado por tipo de programa o acción reportada."
-            :color="secretaria.color"
+            :color="secretaria.color || '#9f2241'"
             etiqueta="Catálogo"
           />
 
-          <div class="vistaDetalleSecretaria__grupos">
+          <div v-if="programasAgrupados.length" class="vistaDetalleSecretaria__grupos">
             <article
               v-for="grupo in programasAgrupados"
               :key="grupo.tipo"
@@ -102,14 +114,14 @@
               <div class="vistaDetalleSecretaria__programas">
                 <article
                   v-for="programa in grupo.programas"
-                  :key="programa.id"
+                  :key="programa.id || programa.nombre"
                   class="vistaDetalleSecretaria__programa"
                 >
                   <div class="vistaDetalleSecretaria__programaSuperior">
-                    <h3>{{ programa.nombre }}</h3>
+                    <h3>{{ programa.nombre || 'Programa sin nombre' }}</h3>
 
                     <span class="vistaDetalleSecretaria__programaEstado">
-                      {{ programa.estado || 'Sin estado' }}
+                      {{ programa.estado || programa.estadoCaptura || 'Sin estado' }}
                     </span>
                   </div>
 
@@ -153,6 +165,10 @@
               </div>
             </article>
           </div>
+
+          <div v-else class="vistaDetalleSecretaria__estado">
+            <p>Esta secretaría aún no tiene programas registrados.</p>
+          </div>
         </section>
       </main>
     </template>
@@ -167,7 +183,6 @@ import {
   Activity,
   ArrowLeft,
   ClipboardList,
-  Layers3,
   MapPin,
   PercentCircle,
   Tags,
@@ -180,8 +195,8 @@ import FilaResumenKpis from '../components/kpis/FilaResumenKpis.vue'
 import EncabezadoSeccion from '../components/ui/EncabezadoSeccion.vue'
 
 import { obtenerSecretariaPorId } from '../services/secretarias/servicioSecretarias'
-
 import { obtenerUsuarioActual } from '../services/sesion/servicioSesion'
+import { metadataSecretarias } from '../data/catalogos/metadataSecretarias'
 
 import {
   crearResumenSecretaria,
@@ -196,17 +211,31 @@ const secretaria = ref(null)
 const cargando = ref(false)
 const mensajeError = ref('')
 
-const resumenSecretaria = computed(() => {
+const secretariaId = computed(() => {
+  return String(route.params.secretariaId || '').trim()
+})
+
+const secretariaSegura = computed(() => {
   if (!secretaria.value) {
-    return crearResumenSecretaria({})
+    return null
   }
 
-  return crearResumenSecretaria(secretaria.value)
+  return enriquecerSecretariaConMetadata(secretaria.value)
+})
+
+const resumenSecretaria = computed(() => {
+  if (!secretariaSegura.value) {
+    return crearResumenSecretaria({
+      programas: [],
+    })
+  }
+
+  return crearResumenSecretaria(secretariaSegura.value)
 })
 
 const estilosSecretaria = computed(() => {
   return {
-    '--detalle-secretaria-color': validarColor(secretaria.value?.color),
+    '--detalle-secretaria-color': validarColor(secretariaSegura.value?.color),
   }
 })
 
@@ -222,23 +251,28 @@ const textoEstadoDato = computed(() => {
 })
 
 const nombreFuente = computed(() => {
-  const archivo = secretaria.value?.archivoFuente || secretaria.value?.fuente?.archivo
+  const archivo =
+    secretariaSegura.value?.archivoFuente ||
+    secretariaSegura.value?.fuente?.archivo ||
+    obtenerArchivoFuenteDesdeProgramas()
 
   if (!archivo) {
     return 'Excel local'
   }
 
-  return archivo.split('/').pop()
+  return String(archivo).split('/').pop()
 })
 
 const kpisSecretaria = computed(() => {
+  const colorSecretaria = validarColor(secretariaSegura.value?.color)
+
   return [
     {
       id: 'programas',
       titulo: 'Programas',
       valor: formatearEntero(resumenSecretaria.value.totalProgramas),
       subtitulo: 'Programas registrados',
-      color: secretaria.value?.color || '#9f2241',
+      color: colorSecretaria,
       icono: ClipboardList,
       estado: resumenSecretaria.value.totalProgramas > 0 ? 'completo' : 'pendiente',
       mostrarEstado: true,
@@ -251,6 +285,7 @@ const kpisSecretaria = computed(() => {
       color: '#bc955c',
       icono: Tags,
       estado: resumenSecretaria.value.totalTiposPrograma > 0 ? 'completo' : 'pendiente',
+      mostrarEstado: true,
     },
     {
       id: 'presupuesto',
@@ -276,16 +311,19 @@ const kpisSecretaria = computed(() => {
 })
 
 const programasAgrupados = computed(() => {
-  const programas = Array.isArray(secretaria.value?.programas) ? secretaria.value.programas : []
+  const programas = Array.isArray(secretariaSegura.value?.programas)
+    ? secretariaSegura.value.programas
+    : []
 
   const grupos = programas.reduce((acumulado, programa) => {
-    const tipo = programa.tipo || 'General'
+    const tipo = limpiarTexto(programa.tipo, 'General')
 
     if (!acumulado[tipo]) {
       acumulado[tipo] = []
     }
 
     acumulado[tipo].push(programa)
+
     return acumulado
   }, {})
 
@@ -316,27 +354,36 @@ async function cargarSecretaria() {
   secretaria.value = null
 
   try {
-    const secretariaId = route.params.secretariaId
-    const secretariaEncontrada = await obtenerSecretariaPorId(secretariaId)
+    if (!secretariaId.value) {
+      mensajeError.value = 'No se recibió el identificador de la secretaría.'
+      return
+    }
+
+    const secretariaEncontrada = await obtenerSecretariaPorId(secretariaId.value, {
+      forzarRecarga: false,
+    })
 
     if (!secretariaEncontrada) {
       mensajeError.value = 'No se encontró la secretaría solicitada.'
       return
     }
 
-    const tienePermiso = await validarPermisoVista(secretariaEncontrada)
+    const secretariaConMetadata = enriquecerSecretariaConMetadata(secretariaEncontrada)
+    const tienePermiso = await validarPermisoVista(secretariaConMetadata)
 
     if (!tienePermiso) {
       router.replace({
-        path: '/no-autorizado',
+        name: 'noAutorizado',
         query: {
           motivo: 'secretaria',
+          desde: route.fullPath,
         },
       })
+
       return
     }
 
-    secretaria.value = secretariaEncontrada
+    secretaria.value = secretariaConMetadata
   } catch (error) {
     console.error('Error al cargar detalle de secretaría:', error)
     mensajeError.value = error?.message || 'Ocurrió un error al cargar la información.'
@@ -346,19 +393,118 @@ async function cargarSecretaria() {
 }
 
 async function validarPermisoVista(secretariaEncontrada) {
-  const usuario = await obtenerUsuarioActual()
+  try {
+    const usuario = await obtenerUsuarioActual()
 
-  if (!usuario.autenticado) {
+    if (!usuario?.autenticado) {
+      return true
+    }
+
+    return puedeVerSecretaria(usuario, secretariaEncontrada)
+  } catch (error) {
+    console.warn(
+      'No fue posible validar la sesión. Se permite acceso temporal en modo local:',
+      error,
+    )
     return true
   }
-
-  return puedeVerSecretaria(usuario, secretariaEncontrada)
 }
 
 function volverPanorama() {
   router.push({
     name: 'panorama',
   })
+}
+
+function enriquecerSecretariaConMetadata(secretariaBase = {}) {
+  const metadata = buscarMetadataSecretaria(secretariaBase)
+
+  return {
+    ...secretariaBase,
+    id: metadata?.id || secretariaBase.id || normalizarIdBusqueda(secretariaBase.sigla),
+    sigla: metadata?.sigla || secretariaBase.sigla || secretariaBase.id || 'N/D',
+    nombre:
+      metadata?.nombre || secretariaBase.nombre || secretariaBase.sigla || 'Secretaría sin nombre',
+    titular: metadata?.titular || secretariaBase.titular || 'Por capturar',
+    color: metadata?.color || secretariaBase.color || '#9f2241',
+    orden: metadata?.orden ?? secretariaBase.orden ?? 999,
+  }
+}
+
+function buscarMetadataSecretaria(secretariaBase = {}) {
+  const listaMetadata = normalizarListaMetadata(metadataSecretarias)
+
+  const candidatosSecretaria = [
+    secretariaBase.id,
+    secretariaBase.sigla,
+    secretariaBase.nombre,
+    secretariaBase.hoja,
+    secretariaBase.hojaFuente,
+    secretariaBase.nombreHoja,
+  ]
+    .map(normalizarClaveSecretaria)
+    .filter(Boolean)
+
+  return (
+    listaMetadata.find((metadata) => {
+      const candidatosMetadata = [
+        metadata.id,
+        metadata.sigla,
+        metadata.nombre,
+        metadata.hoja,
+        ...(Array.isArray(metadata.aliases) ? metadata.aliases : []),
+      ]
+        .map(normalizarClaveSecretaria)
+        .filter(Boolean)
+
+      return candidatosMetadata.some((candidato) => {
+        return candidatosSecretaria.includes(candidato)
+      })
+    }) || null
+  )
+}
+
+function normalizarListaMetadata(metadata) {
+  if (Array.isArray(metadata)) {
+    return metadata
+  }
+
+  if (metadata && typeof metadata === 'object') {
+    return Object.entries(metadata).map(([siglaMetadata, valores]) => {
+      return {
+        sigla: siglaMetadata,
+        ...valores,
+      }
+    })
+  }
+
+  return []
+}
+
+function normalizarClaveSecretaria(valor) {
+  return String(valor || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim()
+    .replace(/\./g, '')
+    .replace(/secretaria/g, '')
+    .replace(/agencia/g, '')
+    .replace(/de/g, '')
+    .replace(/del/g, '')
+    .replace(/la/g, '')
+    .replace(/las/g, '')
+    .replace(/los/g, '')
+    .replace(/\s+/g, '')
+    .replace(/[^a-z0-9]/g, '')
+}
+
+function obtenerArchivoFuenteDesdeProgramas() {
+  const programas = Array.isArray(secretariaSegura.value?.programas)
+    ? secretariaSegura.value.programas
+    : []
+
+  return programas.find((programa) => programa?.archivoFuente)?.archivoFuente || ''
 }
 
 function obtenerEstadoAvance(avance) {
@@ -402,7 +548,7 @@ function formatearEntero(valor) {
 }
 
 function formatearPesos(valor) {
-  const numero = Number(valor)
+  const numero = normalizarNumero(valor)
 
   if (!Number.isFinite(numero) || numero <= 0) {
     return 'Por capturar'
@@ -416,7 +562,7 @@ function formatearPesos(valor) {
 }
 
 function formatearPesosCorto(valor) {
-  const numero = Number(valor)
+  const numero = normalizarNumero(valor)
 
   if (!Number.isFinite(numero) || numero <= 0) {
     return 'Pendiente'
@@ -438,7 +584,7 @@ function formatearPesosCorto(valor) {
 }
 
 function formatearPorcentaje(valor) {
-  const numero = Number(valor)
+  const numero = normalizarNumero(valor)
 
   if (!Number.isFinite(numero)) {
     return 'Pendiente'
@@ -449,12 +595,47 @@ function formatearPorcentaje(valor) {
   }).format(numero)}%`
 }
 
+function normalizarNumero(valor) {
+  if (valor === null || valor === undefined || valor === '') {
+    return NaN
+  }
+
+  if (typeof valor === 'number') {
+    return valor
+  }
+
+  const texto = String(valor).replace(/\$/g, '').replace(/,/g, '').replace(/%/g, '').trim()
+
+  const numero = Number(texto)
+
+  return Number.isFinite(numero) ? numero : NaN
+}
+
+function limpiarTexto(valor, valorDefault = '') {
+  const texto = String(valor ?? '').trim()
+
+  if (!texto || texto.toUpperCase() === 'NA' || texto.toUpperCase() === 'NULL') {
+    return valorDefault
+  }
+
+  return texto
+}
+
 function validarColor(valor) {
   if (/^#[0-9a-fA-F]{6}$/.test(valor || '')) {
     return valor
   }
 
   return '#9f2241'
+}
+
+function normalizarIdBusqueda(valor) {
+  return String(valor || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
 }
 </script>
 

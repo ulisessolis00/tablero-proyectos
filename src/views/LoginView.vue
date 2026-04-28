@@ -69,8 +69,6 @@
       <div class="loginView__visualGlow"></div>
 
       <div class="loginView__visualContenido">
-        <div class="loginView__badgeVisual">Plataforma institucional</div>
-
         <div class="loginView__mensajeVisual">
           <p class="loginView__mensajeVisualEyebrow">Gobierno de la Ciudad de México</p>
 
@@ -82,18 +80,6 @@
             Consulta avances, calidad de captura, presupuesto y métricas ejecutivas desde un entorno
             diseñado para diferentes perfiles de usuario.
           </p>
-        </div>
-
-        <div class="loginView__tarjetasVisuales">
-          <div class="loginView__tarjetaVisual">
-            <span class="loginView__tarjetaVisualLabel"> Acceso principal </span>
-            <strong>Vista global del tablero</strong>
-          </div>
-
-          <div class="loginView__tarjetaVisual">
-            <span class="loginView__tarjetaVisualLabel"> Acceso por secretaría </span>
-            <strong>Consulta limitada por permisos</strong>
-          </div>
         </div>
       </div>
     </aside>
@@ -319,7 +305,7 @@ function simularEspera(ms) {
   overflow: hidden;
   background:
     linear-gradient(180deg, rgba(78, 23, 43, 0.18), rgba(78, 23, 43, 0.38)),
-    url('/imagenes/login-cdmx.jpg');
+    url('/img/login-cdmx.jpg');
   background-position: center;
   background-size: cover;
   background-repeat: no-repeat;

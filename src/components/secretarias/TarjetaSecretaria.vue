@@ -109,6 +109,8 @@ import {
   ESTADO_DATO,
 } from '../../models/secretarias/modeloDatosSecretarias'
 
+import { metadataSecretarias } from '../../data/catalogos/metadataSecretarias'
+
 const props = defineProps({
   secretaria: {
     type: Object,
@@ -130,20 +132,24 @@ const resumen = computed(() => {
   return crearResumenSecretaria(props.secretaria)
 })
 
+const metadataActual = computed(() => {
+  return buscarMetadataSecretaria(props.secretaria)
+})
+
 const sigla = computed(() => {
-  return props.secretaria.sigla || props.secretaria.id || 'N/D'
+  return metadataActual.value?.sigla || props.secretaria.sigla || props.secretaria.id || 'N/D'
 })
 
 const nombre = computed(() => {
-  return props.secretaria.nombre || 'Secretaría sin nombre'
+  return metadataActual.value?.nombre || props.secretaria.nombre || 'Secretaría sin nombre'
 })
 
 const titular = computed(() => {
-  return props.secretaria.titular || 'Titular pendiente'
+  return metadataActual.value?.titular || props.secretaria.titular || 'Por capturar'
 })
 
 const color = computed(() => {
-  return validarColor(props.secretaria.color)
+  return validarColor(metadataActual.value?.color || props.secretaria.color)
 })
 
 const programas = computed(() => {
@@ -240,7 +246,82 @@ function verDetalleSecretaria() {
     return
   }
 
-  emit('verDetalle', props.secretaria)
+  emit('verDetalle', {
+    ...props.secretaria,
+    id: metadataActual.value?.id || props.secretaria.id,
+    sigla: sigla.value,
+    nombre: nombre.value,
+    titular: titular.value,
+    color: color.value,
+  })
+}
+
+function buscarMetadataSecretaria(secretaria = {}) {
+  const listaMetadata = normalizarListaMetadata(metadataSecretarias)
+
+  const candidatosSecretaria = [
+    secretaria.id,
+    secretaria.sigla,
+    secretaria.nombre,
+    secretaria.hoja,
+    secretaria.hojaFuente,
+    secretaria.nombreHoja,
+  ]
+    .map(normalizarClaveSecretaria)
+    .filter(Boolean)
+
+  return (
+    listaMetadata.find((metadata) => {
+      const candidatosMetadata = [
+        metadata.id,
+        metadata.sigla,
+        metadata.nombre,
+        metadata.hoja,
+        ...(Array.isArray(metadata.aliases) ? metadata.aliases : []),
+      ]
+        .map(normalizarClaveSecretaria)
+        .filter(Boolean)
+
+      return candidatosMetadata.some((candidato) => {
+        return candidatosSecretaria.includes(candidato)
+      })
+    }) || null
+  )
+}
+
+function normalizarListaMetadata(metadata) {
+  if (Array.isArray(metadata)) {
+    return metadata
+  }
+
+  if (metadata && typeof metadata === 'object') {
+    return Object.entries(metadata).map(([siglaMetadata, valores]) => {
+      return {
+        sigla: siglaMetadata,
+        ...valores,
+      }
+    })
+  }
+
+  return []
+}
+
+function normalizarClaveSecretaria(valor) {
+  return String(valor || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim()
+    .replace(/\./g, '')
+    .replace(/secretaria/g, '')
+    .replace(/agencia/g, '')
+    .replace(/de/g, '')
+    .replace(/del/g, '')
+    .replace(/la/g, '')
+    .replace(/las/g, '')
+    .replace(/los/g, '')
+    .replace(/\s+/g, '')
+    .replace(/[^a-z0-9]/g, '')
 }
 
 function formatearEntero(valor) {

@@ -1,7 +1,4 @@
-// src/router/index.js
-
 import { createRouter, createWebHistory } from "vue-router";
-import { registrarGuardiasRuta } from "./guardiasRuta";
 
 const routes = [
   {
@@ -17,16 +14,7 @@ const routes = [
     name: "detalleSecretaria",
     component: () => import("../views/VistaDetalleSecretaria.vue"),
     meta: {
-      titulo: "Detalle de Secretaría",
-
-      // Por ahora los datos son públicos, entonces lo dejamos libre.
-      requiereAutenticacion: false,
-      validarSecretaria: false,
-
-      // Cuando quieras protegerlo:
-      // requiereAutenticacion: true,
-      // validarSecretaria: true,
-      parametroSecretaria: "secretariaId"
+      titulo: "Detalle de secretaría"
     }
   },
   {
@@ -35,7 +23,15 @@ const routes = [
     component: () => import("../views/LoginView.vue"),
     meta: {
       titulo: "Iniciar sesión",
-      soloInvitados: true
+      ocultarAppShell: true
+    }
+  },
+  {
+    path: "/visualizaciones",
+    name: "visualizaciones",
+    component: () => import("../views/VistaVisualizaciones.vue"),
+    meta: {
+      titulo: "Visualizaciones"
     }
   },
   {
@@ -43,15 +39,23 @@ const routes = [
     name: "noAutorizado",
     component: () => import("../views/VistaNoAutorizado.vue"),
     meta: {
-      titulo: "Acceso no autorizado"
+      titulo: "No autorizado"
     }
   },
   {
     path: "/:pathMatch(.*)*",
-    name: "noEncontrado",
+    name: "error404",
     component: () => import("../views/VistaError404.vue"),
     meta: {
       titulo: "Página no encontrada"
+    }
+  },
+  {
+    path: '/propuestas/visualizaciones-experimentales',
+    name: 'visualizacionesExperimentales',
+    component: () => import('../views/VistaExperimentalGraficas.vue'),
+    meta: {
+      titulo: 'Visualizaciones experimentales'
     }
   }
 ];
@@ -61,6 +65,10 @@ const router = createRouter({
   routes
 });
 
-registrarGuardiasRuta(router);
+router.afterEach((to) => {
+  document.title = to.meta?.titulo
+    ? `${to.meta.titulo} | Tablero de Avances CDMX`
+    : "Tablero de Avances CDMX";
+});
 
 export default router;

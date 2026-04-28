@@ -3,21 +3,21 @@
 <template>
   <section class="filaResumenKpis" :class="clasesFila" :style="estilosFila" :aria-label="ariaLabel">
     <header v-if="mostrarEncabezado" class="filaResumenKpis__encabezado">
-      <div>
-        <p v-if="etiqueta" class="filaResumenKpis__etiqueta">
+      <div class="filaResumenKpis__encabezadoTextos">
+        <span v-if="etiqueta" class="filaResumenKpis__etiqueta">
           {{ etiqueta }}
-        </p>
+        </span>
 
-        <h2 class="filaResumenKpis__titulo">
-          {{ titulo }}
-        </h2>
+        <h2>{{ titulo }}</h2>
 
-        <p v-if="subtitulo" class="filaResumenKpis__subtitulo">
+        <p v-if="subtitulo">
           {{ subtitulo }}
         </p>
       </div>
 
-      <slot name="acciones"></slot>
+      <div v-if="$slots.acciones" class="filaResumenKpis__acciones">
+        <slot name="acciones"></slot>
+      </div>
     </header>
 
     <div v-if="cargando" class="filaResumenKpis__grid" aria-live="polite">
@@ -317,6 +317,35 @@ const clasesFila = computed(() => {
 .filaResumenKpis--compacta .filaResumenKpis__skeleton {
   min-height: 118px;
   border-radius: 1rem;
+}
+
+.filaResumenKpis__encabezado {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.filaResumenKpis__encabezadoTextos {
+  min-width: 0;
+}
+
+.filaResumenKpis__acciones {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex: 0 0 auto;
+}
+
+@media (max-width: 720px) {
+  .filaResumenKpis__encabezado {
+    flex-direction: column;
+  }
+
+  .filaResumenKpis__acciones {
+    width: 100%;
+    justify-content: flex-start;
+  }
 }
 
 @keyframes skeletonBrillo {

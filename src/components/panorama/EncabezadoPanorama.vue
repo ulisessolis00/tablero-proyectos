@@ -117,7 +117,7 @@ const props = defineProps({
   },
   rutaLogo: {
     type: String,
-    default: '/img/cdmx_logo.png',
+    default: '/img/cdmx_cuadrito.png',
   },
   rutaFondo: {
     type: String,

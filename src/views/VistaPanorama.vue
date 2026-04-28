@@ -11,10 +11,21 @@
         etiqueta="Panorama"
         :kpis="kpisPanorama"
         :columnas="4"
-        :cargando="cargando"
         variante="contenida"
         mostrar-encabezado
-      />
+      >
+        <template #acciones>
+          <button
+            class="vistaPanorama__botonVisualizaciones"
+            type="button"
+            @click="irAVisualizaciones"
+          >
+            <BarChart3 :size="17" stroke-width="2.4" />
+
+            <span>Resumen gráfico</span>
+          </button>
+        </template>
+      </FilaResumenKpis>
 
       <div class="vistaPanorama__seccion">
         <EncabezadoSeccion
@@ -137,6 +148,12 @@ const kpisPanorama = computed(() => {
     },
   ]
 })
+
+function irAVisualizaciones() {
+  router.push({
+    name: 'visualizaciones',
+  })
+}
 
 const tiposPrograma = computed(() => {
   const tipos = secretarias.value.flatMap((secretaria) => {
@@ -388,6 +405,46 @@ function obtenerMensajeError(error) {
   }
 
   .vistaPanorama__alertaBoton {
+    width: 100%;
+  }
+}
+
+.vistaPanorama__botonVisualizaciones {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  min-height: 2.45rem;
+  border: 1px solid rgba(159, 34, 65, 0.16);
+  border-radius: 999px;
+  background: linear-gradient(135deg, #9f2241, #b64061);
+  box-shadow: 0 14px 26px rgba(159, 34, 65, 0.16);
+  color: #ffffff;
+  padding: 0.62rem 1rem;
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 900;
+  letter-spacing: 0.025em;
+  cursor: pointer;
+  transition:
+    transform 180ms ease,
+    filter 180ms ease,
+    box-shadow 180ms ease;
+}
+
+.vistaPanorama__botonVisualizaciones:hover {
+  filter: brightness(1.05);
+  transform: translateY(-1px);
+  box-shadow: 0 18px 32px rgba(159, 34, 65, 0.2);
+}
+
+.vistaPanorama__botonVisualizaciones:focus-visible {
+  outline: 3px solid rgba(159, 34, 65, 0.22);
+  outline-offset: 3px;
+}
+
+@media (max-width: 720px) {
+  .vistaPanorama__botonVisualizaciones {
     width: 100%;
   }
 }
